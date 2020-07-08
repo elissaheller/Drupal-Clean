@@ -1,0 +1,7 @@
+{
+  "patches": {
+    "drupal/commerce_stripe" : {
+      "Retrieve amount from Stripe before confirming payment": "patches/commerce_stripe-confirm-amount.patch"
+    }
+  }
+}

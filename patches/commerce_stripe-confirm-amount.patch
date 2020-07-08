@@ -1,0 +1,99 @@
+diff --git a/js/commerce_stripe.review.js b/js/commerce_stripe.review.js
+index 4c783bf..b76c4de 100644
+--- a/js/commerce_stripe.review.js
++++ b/js/commerce_stripe.review.js
+@@ -32,14 +32,22 @@
+                 }
+               };
+             }
+-            stripe.handleCardPayment(drupalSettings.commerceStripe.clientSecret, data).then(function (result) {
+-              allowSubmit = true;
++
++            stripe.retrievePaymentIntent(drupalSettings.commerceStripe.clientSecret, data).then(function(result) {
+               if (result.error) {
+                 Drupal.commerceStripe.displayError(result.error.message)
+               }
++              if (result.paymentIntent && result.paymentIntent.amount === drupalSettings.commerceStripe.amount) {
++                stripe.handleCardPayment(drupalSettings.commerceStripe.clientSecret, data).then(function (result) {
++                  if (result.error) {
++                    Drupal.commerceStripe.displayError(result.error.message)
++                  }
++                });
++              }
++              allowSubmit = true;
+               $form.submit();
+-
+             });
++
+             return false;
+           }
+           return true;
+diff --git a/src/Plugin/Commerce/CheckoutPane/StripeReview.php b/src/Plugin/Commerce/CheckoutPane/StripeReview.php
+index c1fd776..cd1620b 100644
+--- a/src/Plugin/Commerce/CheckoutPane/StripeReview.php
++++ b/src/Plugin/Commerce/CheckoutPane/StripeReview.php
+@@ -143,6 +143,7 @@ class StripeReview extends CheckoutPaneBase {
+       'buttonId' => $this->configuration['button_id'],
+       'orderId' => $this->order->id(),
+       'paymentMethod' => $intent->payment_method,
++      'amount' => $intent->amount
+     ];
+     $profiles = $this->order->collectProfiles();
+     if (isset($profiles['shipping'])) {
+diff --git a/tests/src/FunctionalJavascript/CheckoutTest.php b/tests/src/FunctionalJavascript/CheckoutTest.php
+index 3cec3ef..81c4e27 100644
+--- a/tests/src/FunctionalJavascript/CheckoutTest.php
++++ b/tests/src/FunctionalJavascript/CheckoutTest.php
+@@ -447,6 +447,52 @@ class CheckoutTest extends CommerceWebDriverTestBase {
+     }
+   }
+ 
++   /**
++    * Tests checkout with a Stripe amount that doesn't match the Drupal amount.
++    *
++    * @dataProvider dataProviderUserAuthenticated
++    */
++    public function testCheckoutWithPaymentAmountMismatch($authenticated) {
++      $payment_gateway = PaymentGateway::load('stripe_testing');
++      $configuration = $payment_gateway->getPlugin()->getConfiguration();
++      $configuration['collect_billing_information'] = FALSE;
++      $payment_gateway->getPlugin()->setConfiguration($configuration);
++      $payment_gateway->save();
++
++      if ($authenticated) {
++        $customer = $this->createUser();
++        $this->drupalLogin($customer);
++      }
++      $this->drupalGet($this->product->toUrl()->toString());
++      $this->submitForm([], 'Add to cart');
++      $cart_link = $this->getSession()->getPage()->findLink('your cart');
++      $cart_link->click();
++      $this->submitForm([], 'Checkout');
++
++      if (!$authenticated) {
++        $this->submitForm([], 'Continue as Guest');
++        $this->getSession()->getPage()->fillField('contact_information[email]', 'guest@example.com');
++        $this->getSession()->getPage()->fillField('contact_information[email_confirm]', 'guest@example.com');
++      }
++
++      $this->fillCreditCardData('4242424242424242', '0322', '123');
++      $this->submitForm([], 'Continue to review');
++
++      $this->assertWaitForText('Visa ending in 4242');
++      $this->assertWaitForText('Expires 3/2022');
++
++      // OPEN NEW TAB
++      $this->getSession()->switchToWindow('2nd window');
++      $this->drupalGet($this->product->toUrl()->toString());
++      $this->submitForm([], 'Add to cart');
++
++      // ADD PRODUCT TO CART
++      $this->getSession()->switchToWindow();
++      $this->submitForm([], 'Pay and complete purchase');
++
++      $this->assertWaitForText('Your order number is 1. You can view your order on your account page when logged in.');
++    }
++
+   /**
+    * Data provider to provide a pass or truthy data set.
+    *

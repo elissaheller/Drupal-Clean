@@ -1,0 +1,42 @@
+name: drupalclean
+recipe: drupal8
+config:
+  php: '7.3'
+  via: apache
+  webroot: web
+  xdebug: false
+
+services:
+  database:
+    portforward: 3307
+  webdriver:
+    type: compose
+    services:
+      image: selenium/standalone-chrome:3.141.59-mercury
+      user: root
+      ports:
+        - "4444"
+        - "9515"
+      volumes:
+        - /dev/shm:/dev/shm
+      command: /opt/bin/entry_point.sh
+
+  phpunit-commerce-stripe:
+    service: appserver
+    description: "Run PHP Unit Functional JS test for commerce_stripe module."
+    cmd:
+      - /app/vendor/bin/paratest -f -c /app/phpunit-lando-functjs.xml --filter testCheckoutWithPaymentAmountMismatch
+        /app/web/modules/contrib/commerce_stripe/tests/src/FunctionalJavascript/CheckoutTest.php
+
+  xdebug-on:
+    service: appserver
+    description: Enable xdebug for apache.
+    cmd: "docker-php-ext-enable xdebug && /etc/init.d/apache2 reload"
+    user: root
+
+  xdebug-off:
+    service: appserver
+    description: Disable xdebug for apache.
+    cmd: "rm /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && /etc/init.d/apache2 reload"
+    user: root
+
