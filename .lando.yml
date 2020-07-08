@@ -21,22 +21,19 @@ services:
         - /dev/shm:/dev/shm
       command: /opt/bin/entry_point.sh
 
+tooling:
   phpunit-commerce-stripe:
     service: appserver
     description: "Run PHP Unit Functional JS test for commerce_stripe module."
     cmd:
-      - /app/vendor/bin/paratest -f -c /app/phpunit-lando-functjs.xml --filter testCheckoutWithPaymentAmountMismatch
-        /app/web/modules/contrib/commerce_stripe/tests/src/FunctionalJavascript/CheckoutTest.php
-
+      - phpunit --filter testCheckoutWithPaymentAmountMismatch web/modules/contrib/commerce_stripe/tests/src/FunctionalJavascript/CheckoutTest.php
   xdebug-on:
     service: appserver
     description: Enable xdebug for apache.
     cmd: "docker-php-ext-enable xdebug && /etc/init.d/apache2 reload"
     user: root
-
   xdebug-off:
     service: appserver
     description: Disable xdebug for apache.
     cmd: "rm /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && /etc/init.d/apache2 reload"
     user: root
-
