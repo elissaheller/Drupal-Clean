@@ -21,7 +21,8 @@
         "drupal/commerce_stripe": "^1.0@RC",
         "drupal/core-composer-scaffold": "^8.8",
         "drupal/core-project-message": "^8.8",
-        "drupal/core-recommended": "^8.8"
+        "drupal/core-recommended": "^8.8",
+        "symfony/phpunit-bridge": "^5.1"
     },
     "conflict": {
         "drupal/drupal": "*"
@@ -89,7 +90,6 @@
     "require-dev": {
         "behat/mink": "^1.8",
         "behat/mink-selenium2-driver": "^1.4",
-        "brianium/paratest": "^4.0",
         "phpunit/phpunit": "^7.0"
     }
 }
