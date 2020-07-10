@@ -1,0 +1,57 @@
+diff --git a/src/EventSubscriber/OrderPaymentIntentSubscriber.php b/src/EventSubscriber/OrderPaymentIntentSubscriber.php
+index 4d8d0e4..1dd9a00 100644
+--- a/src/EventSubscriber/OrderPaymentIntentSubscriber.php
++++ b/src/EventSubscriber/OrderPaymentIntentSubscriber.php
+@@ -70,7 +70,12 @@ class OrderPaymentIntentSubscriber implements EventSubscriberInterface, Destruct
+           PaymentIntent::STATUS_REQUIRES_PAYMENT_METHOD,
+           PaymentIntent::STATUS_REQUIRES_CONFIRMATION,
+         ], TRUE)) {
+-          PaymentIntent::update($intent_id, ['amount' => $amount]);
++          if ($amount === 0.0) {
++           $intent->cancel();
++          }
++          else {
++            PaymentIntent::update($intent_id, ['amount' => $amount]);
++          }
+         }
+       }
+       catch (StripeError $e) {
+@@ -103,6 +108,10 @@ class OrderPaymentIntentSubscriber implements EventSubscriberInterface, Destruct
+     if ($total_price !== NULL) {
+       $amount = $this->toMinorUnits($order->getTotalPrice());
+       $this->updateList[$intent_id] = $amount;
++      if ($total_price->getNumber() === '0') {
++        $order->setData('stripe_intent', NULL);
++        $order->save();
++      }
+     }
+   }
+ 
+diff --git a/src/Plugin/Commerce/CheckoutPane/StripeReview.php b/src/Plugin/Commerce/CheckoutPane/StripeReview.php
+index c1fd776..a80f5b8 100644
+--- a/src/Plugin/Commerce/CheckoutPane/StripeReview.php
++++ b/src/Plugin/Commerce/CheckoutPane/StripeReview.php
+@@ -120,6 +120,9 @@ class StripeReview extends CheckoutPaneBase {
+       $capture = $payment_process_pane->getConfiguration()['capture'];
+       $intent = $stripe_plugin->createPaymentIntent($this->order, $capture);
+     }
++    if (empty($intent)) {
++      return $pane_form;
++    }
+     if ($intent->status === PaymentIntent::STATUS_REQUIRES_PAYMENT_METHOD) {
+       $payment_method = $this->order->get('payment_method')->entity;
+       assert($payment_method instanceof PaymentMethodInterface);
+diff --git a/src/Plugin/Commerce/PaymentGateway/Stripe.php b/src/Plugin/Commerce/PaymentGateway/Stripe.php
+index 041095a..fa1d3c5 100755
+--- a/src/Plugin/Commerce/PaymentGateway/Stripe.php
++++ b/src/Plugin/Commerce/PaymentGateway/Stripe.php
+@@ -417,6 +417,9 @@ class Stripe extends OnsitePaymentGatewayBase implements StripeInterface {
+     $customer_remote_id = $this->getRemoteCustomerId($order->getCustomer());
+ 
+     $amount = $this->toMinorUnits($order->getTotalPrice());
++    if ($amount === 0.0) {
++      return NULL;
++    }
+     $order_id = $order->id();
+     $capture_method = $capture ? 'automatic' : 'manual';
+     $intent_array = [

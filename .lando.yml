@@ -26,7 +26,7 @@ tooling:
     service: appserver
     description: "Run PHP Unit Functional JS test for commerce_stripe module."
     cmd:
-      - phpunit --filter testCheckoutWithPaymentAmountMismatch web/modules/contrib/commerce_stripe/tests/src/FunctionalJavascript/CheckoutTest.php
+      - phpunit --filter testZeroAmount web/modules/contrib/commerce_stripe/tests/src/FunctionalJavascript/CheckoutTest.php
   xdebug-on:
     service: appserver
     description: Enable xdebug for apache.
